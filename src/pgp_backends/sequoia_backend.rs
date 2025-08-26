@@ -12,7 +12,7 @@ use sequoia_openpgp::packet::Key;
 use sequoia_openpgp::packet::UserID as SequoiaUserID;
 use sequoia_openpgp::serialize::{MarshalInto, SerializeInto};
 use sequoia_openpgp::types::{
-    Curve as SequoiaCurve, Features, HashAlgorithm, KeyFlags, SignatureType, SymmetricAlgorithm,
+    Curve as SequoiaCurve, Features, HashAlgorithm, KeyFlags, RevocationKey, SignatureType, SymmetricAlgorithm
 };
 use sequoia_openpgp::{Cert, Packet};
 
@@ -51,6 +51,7 @@ fn generate_key(
             Curve::NistP256 => Key4::generate_ecc(for_signing, SequoiaCurve::NistP256),
             Curve::NistP384 => Key4::generate_ecc(for_signing, SequoiaCurve::NistP384),
             Curve::NistP521 => Key4::generate_ecc(for_signing, SequoiaCurve::NistP521),
+            Curve::BpP512r1 => Key4::generate_ecc(for_signing, SequoiaCurve::BrainpoolP512),
         },
     };
     if let Ok(key) = wrapped_key {
@@ -106,12 +107,12 @@ impl Backend for SequoiaBackend {
         if let Some(uid_string) = uid.get_id() {
             let uid_signature_builder = SignatureBuilder::from(direct_key_signature)
                 .set_signature_creation_time(creation_time)?
-                .set_revocation_key(vec![])? // Remove revocation certificate
+                // .set_revocation_key(vec![])? // Remove revocation certificate
                 .set_type(SignatureType::PositiveCertification)
                 .set_hash_algo(HashAlgorithm::SHA512);
             let uid_packet = SequoiaUserID::from(uid_string);
             let uid_signature = uid_packet.bind(&mut signer, &cert, uid_signature_builder)?;
-            cert = cert.insert_packets(vec![Packet::from(uid_packet), uid_signature.into()])?;
+            cert = cert.insert_packets(vec![Packet::from(uid_packet), uid_signature.into()])?.0;
         }
 
         // Encryption subkey
@@ -130,7 +131,7 @@ impl Backend for SequoiaBackend {
         cert = cert.insert_packets(vec![
             Packet::SecretSubkey(subkey_packet),
             subkey_signature.into(),
-        ])?;
+        ])?.0;
 
         if cert.unknowns().next().is_none() {
             // Get armored texts

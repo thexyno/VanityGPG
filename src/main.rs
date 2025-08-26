@@ -71,6 +71,7 @@ enum CipherSuiteValues {
     NISTP256,
     NISTP384,
     NISTP521,
+    BpP512r1,
 }
 
 /// Commandline option parser with `Clap`
@@ -208,6 +209,7 @@ impl From<&CipherSuiteValues> for CipherSuite {
             CipherSuiteValues::NISTP256 => CipherSuite::NistP256,
             CipherSuiteValues::NISTP384 => CipherSuite::NistP384,
             CipherSuiteValues::NISTP521 => CipherSuite::NistP521,
+            CipherSuiteValues::BpP512r1 => CipherSuite::BpP512r1,
         }
     }
 }

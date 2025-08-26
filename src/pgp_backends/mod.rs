@@ -59,6 +59,7 @@ pub enum CipherSuite {
     NistP256,
     NistP384,
     NistP521,
+    BpP512r1,
 }
 
 /// Variations of RSA keys
@@ -77,6 +78,7 @@ pub enum Curve {
     NistP256,
     NistP384,
     NistP521,
+    BpP512r1,
 }
 
 /// Algorithms
@@ -151,6 +153,7 @@ impl FromStr for CipherSuite {
             "nistp256" | "p256" => Ok(CipherSuite::NistP256),
             "nistp384" | "p384" => Ok(CipherSuite::NistP384),
             "nistp521" | "p521" => Ok(CipherSuite::NistP521),
+            "bp512"  => Ok(CipherSuite::BpP512r1),
             s => Err(PGPError::CipherSuiteNotSupported(String::from(s))),
         }
     }
@@ -173,6 +176,7 @@ impl CipherSuite {
             CipherSuite::NistP256 => Algorithms::Ecc(Curve::NistP256),
             CipherSuite::NistP384 => Algorithms::Ecc(Curve::NistP384),
             CipherSuite::NistP521 => Algorithms::Ecc(Curve::NistP521),
+            CipherSuite::BpP512r1 => Algorithms::Ecc(Curve::BpP512r1),
         }
     }
 

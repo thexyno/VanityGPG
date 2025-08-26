@@ -7,19 +7,20 @@ let
         else "";
 in
     with nixpkgs;
-    stdenv.mkDerivation rec {
-        name = "vanityPGP";
-        env = buildEnv { name = name; paths = buildInputs; };
+    mkShell rec {
+        packages = [
+            # List packages that should be on the path
+            # You can search for package names using nix-env -qaP | grep <name>
+            stdenv clang nettle pkg-config capnproto sqlite rustc cargo llvm
+            llvmPackages.libclang platform_dependencies rust-analyzer
+        ];
         buildInputs = [
             # List packages that should be on the path
             # You can search for package names using nix-env -qaP | grep <name>
             stdenv clang nettle pkg-config capnproto sqlite rustc cargo llvm
-            llvmPackages.libclang platform_dependencies
+            llvmPackages.libclang platform_dependencies rust-analyzer
         ];
+        LIBCLANG_PATH = libclang.lib + "/lib";
 
-        LIBCLANG_PATH="${llvmPackages.libclang}/lib";
 
-        shellHook = ''
-          export NIX_SHELL_ENV=${name}
-        '';
     }
