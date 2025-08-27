@@ -61,6 +61,8 @@ const KEY_RESHUFFLE_LIMIT: usize = 60 * 60 * 24 * 30; // Two months ago at worst
 /// Counter threshold
 const COUNTER_THRESHOLD: usize = 133337; // Just a random number
 
+const END_BYTES: usize = 6;
+
 /// Possible values for CipherSuite
 #[derive(ValueEnum, Clone, Debug)]
 enum CipherSuiteValues {
@@ -317,8 +319,8 @@ fn main() -> Result<(), Error> {
         .num_threads(opts.jobs + 1)
         .build()?;
     let user_id = UserID::from(opts.user_id);
-        let possible_ends: Vec<[u8;6]> = opts.ends.split(',').map(|x| {
-            let mut s = [0u8;6];
+        let possible_ends: Vec<[u8;END_BYTES]> = opts.ends.split(',').map(|x| {
+            let mut s = [0u8;END_BYTES];
             hex::decode_to_slice(x,&mut s).unwrap();
             s
         }).collect();
@@ -336,7 +338,7 @@ fn main() -> Result<(), Error> {
         // let bin = example_key.get_fingerprint_bin();
         // warn!("example key (bin): {:x?}", bin);
         // warn!("example key (hex): {}", example_key.get_fingerprint());
-        // let fp =  vec![[0u8;6], bin[14..].try_into().unwrap()];
+        // let fp =  vec![[0u8;END_BYTES], bin[14..].try_into().unwrap()];
         // warn!("stupid test (bin): {:x?}", fp);
         // warn!("stupid test: {}", fp.contains(bin[14..].try_into().unwrap()));
         // }
@@ -347,7 +349,7 @@ fn main() -> Result<(), Error> {
             let mut report_counter: usize = 0;
             loop {
                 let fingerprint = key.get_fingerprint_bin();
-                let fingerprint_end: [u8;6] = fingerprint[14..].try_into().unwrap();
+                let fingerprint_end: [u8;END_BYTES] = fingerprint[(20-END_BYTES)..].try_into().unwrap();
                 if possible_ends.contains(&fingerprint_end) {
                     warn!("({}): [{}] matched", thread_id, &key.get_fingerprint());
                     counter_cloned.count_success();

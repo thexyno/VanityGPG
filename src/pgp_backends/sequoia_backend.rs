@@ -12,7 +12,7 @@ use sequoia_openpgp::packet::Key;
 use sequoia_openpgp::packet::UserID as SequoiaUserID;
 use sequoia_openpgp::serialize::{MarshalInto, SerializeInto};
 use sequoia_openpgp::types::{
-    Curve as SequoiaCurve, Features, HashAlgorithm, KeyFlags, RevocationKey, SignatureType, SymmetricAlgorithm
+    CompressionAlgorithm, Curve as SequoiaCurve, Features, HashAlgorithm, KeyFlags, RevocationKey, SignatureType, SymmetricAlgorithm
 };
 use sequoia_openpgp::{Cert, Packet};
 use sha1::Digest;
@@ -107,13 +107,19 @@ impl Backend for SequoiaBackend {
         let direct_key_signature = SignatureBuilder::new(SignatureType::DirectKey)
             .set_hash_algo(HashAlgorithm::SHA512)
             .set_features(Features::sequoia())?
-            .set_key_flags(KeyFlags::empty().set_certification().set_signing())?
+            .set_key_flags(KeyFlags::empty().set_certification())?
             .set_signature_creation_time(creation_time)?
+            .set_preferred_compression_algorithms(vec![
+                CompressionAlgorithm::BZip2,
+                CompressionAlgorithm::Zlib,
+                CompressionAlgorithm::Zip
+            ])?
             .set_key_validity_period(None)?
-            .set_preferred_hash_algorithms(vec![HashAlgorithm::SHA512, HashAlgorithm::SHA256])?
+            .set_preferred_hash_algorithms(vec![HashAlgorithm::SHA512, HashAlgorithm::SHA384, HashAlgorithm::SHA256])?
             .set_preferred_symmetric_algorithms(vec![
                 SymmetricAlgorithm::AES256,
-                SymmetricAlgorithm::AES128,
+                SymmetricAlgorithm::AES192,
+                SymmetricAlgorithm::AES128
             ])?
             .sign_direct_key(&mut signer, Some(primary_key_packet.parts_as_public()))?;
         packets.push(Packet::SecretKey(primary_key_packet));
@@ -135,22 +141,22 @@ impl Backend for SequoiaBackend {
         }
 
         // Encryption subkey
-        let mut subkey = generate_key(self.cipher_suite.get_encryption_key_algorithm(), false)?
-            .parts_into_secret()?
-            .role_into_subordinate();
-        subkey.set_creation_time(creation_time)?;
-        let subkey_packet = Key::V4(subkey);
-        let subkey_signature_builder = SignatureBuilder::new(SignatureType::SubkeyBinding)
-            .set_signature_creation_time(creation_time)?
-            .set_hash_algo(HashAlgorithm::SHA512)
-            .set_features(Features::sequoia())?
-            .set_key_flags(KeyFlags::empty().set_storage_encryption())?
-            .set_key_validity_period(None)?;
-        let subkey_signature = subkey_packet.bind(&mut signer, &cert, subkey_signature_builder)?;
-        cert = cert.insert_packets(vec![
-            Packet::SecretSubkey(subkey_packet),
-            subkey_signature.into(),
-        ])?.0;
+        // let mut subkey = generate_key(self.cipher_suite.get_encryption_key_algorithm(), false)?
+        //     .parts_into_secret()?
+        //     .role_into_subordinate();
+        // subkey.set_creation_time(creation_time)?;
+        // let subkey_packet = Key::V4(subkey);
+        // let subkey_signature_builder = SignatureBuilder::new(SignatureType::SubkeyBinding)
+        //     .set_signature_creation_time(creation_time)?
+        //     .set_hash_algo(HashAlgorithm::SHA512)
+        //     .set_features(Features::sequoia())?
+        //     .set_key_flags(KeyFlags::empty().set_storage_encryption())?
+        //     .set_key_validity_period(None)?;
+        // let subkey_signature = subkey_packet.bind(&mut signer, &cert, subkey_signature_builder)?;
+        // cert = cert.insert_packets(vec![
+        //     Packet::SecretSubkey(subkey_packet),
+        //     subkey_signature.into(),
+        // ])?.0;
 
         if cert.unknowns().next().is_none() {
             // Get armored texts
