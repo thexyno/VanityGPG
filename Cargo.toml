@@ -30,8 +30,9 @@ pgp = { version = "^0.10", optional = true }
 clap = { version = "^4.3", features = [ "derive" ] }
 rand = { version = "^0.8", optional = true }
 rayon = "^1.7"
-regex = "^1.9"
+regex = { version = "^1.11", features = [ "perf-dfa-full" ] }
 sha-1 = { version = "^0.10", features = [ "asm", "compress" ], optional = true }
+sha1 = { version = "0.11.0-rc.0" }
 anyhow = "^1.0"
 chrono = { version = "^0.4", optional = true }
 nettle = "^7.3"
@@ -43,6 +44,7 @@ byteorder = "^1.4"
 indicatif = "^0.17"
 thiserror = "^1.0"
 sequoia-openpgp = { version = "2", optional = true, default-features=false, features = ["crypto-openssl" ] }
+hex = "^0.4"
 
 [profile.test]
 opt-level = 3

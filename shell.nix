@@ -13,6 +13,7 @@ in
             # You can search for package names using nix-env -qaP | grep <name>
             stdenv clang nettle pkg-config capnproto sqlite rustc cargo llvm
             llvmPackages.libclang platform_dependencies rust-analyzer
+            cargo-flamegraph
         ];
         buildInputs = [
             # List packages that should be on the path

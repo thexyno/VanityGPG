@@ -15,6 +15,7 @@ use sequoia_openpgp::types::{
     Curve as SequoiaCurve, Features, HashAlgorithm, KeyFlags, RevocationKey, SignatureType, SymmetricAlgorithm
 };
 use sequoia_openpgp::{Cert, Packet};
+use sha1::Digest;
 
 use super::{
     sha1_to_hex, Algorithms, ArmoredKey, Backend, CipherSuite, Curve, PGPError, Rsa,
@@ -32,6 +33,7 @@ pub struct SequoiaBackend {
     cipher_suite: CipherSuite,
     timestamp: u32,
     packet_cache: Vec<u8>,
+    sha1: Box<sha1::Sha1>
 }
 
 /// Generate key with the required `CipherSuite`
@@ -62,11 +64,28 @@ fn generate_key(
 }
 
 impl Backend for SequoiaBackend {
-    fn fingerprint(&self) -> String {
-        let mut hasher = Sha1::default();
-        hasher.update(&self.packet_cache);
-        let mut digest_buffer: [u8; 20] = [0; 20];
-        hasher.digest(&mut digest_buffer);
+    fn fingerprint_bin(&mut self) -> [u8;20] {
+        // let mut ctx = HashAlgorithm::SHA1.context().unwrap().for_digest();
+        // let mut ctx= Sha1::default();
+        // let mut ctx = sha1::Sha1::new();
+        let ctx = self.sha1.as_mut();
+        ctx.update(&self.packet_cache);
+        return ctx.finalize_reset().into();
+        // let digest_buffer = sha1::Sha1::digest(&self.packet_cache);
+        // let mut digest_buffer: [u8; 20] = [0; 20];
+        // ctx.digest(&mut digest_buffer);
+        // hex_string(&digest_buffer).unwrap()
+    }
+    fn fingerprint(&mut self) -> String {
+        // let mut ctx = HashAlgorithm::SHA1.context().unwrap().for_digest();
+        // let mut ctx= Sha1::default();
+        // let mut ctx = sha1::Sha1::new();
+        let ctx = self.sha1.as_mut();
+        ctx.update(&self.packet_cache);
+        let digest_buffer = ctx.finalize_reset();
+        // let digest_buffer = sha1::Sha1::digest(&self.packet_cache);
+        // let mut digest_buffer: [u8; 20] = [0; 20];
+        // ctx.digest(&mut digest_buffer);
         // hex_string(&digest_buffer).unwrap()
         sha1_to_hex(&digest_buffer)
     }
@@ -175,6 +194,7 @@ impl SequoiaBackend {
             cipher_suite: ciphers,
             timestamp,
             packet_cache,
+            sha1: Box::new(sha1::Sha1::new())
         })
     }
 

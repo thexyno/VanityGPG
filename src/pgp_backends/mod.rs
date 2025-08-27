@@ -104,7 +104,8 @@ pub struct ArmoredKey {
 /// Backend adaptor trait
 pub trait Backend {
     /// Get the fingerprint of the key
-    fn fingerprint(&self) -> String;
+    fn fingerprint(&mut self) -> String;
+    fn fingerprint_bin(&mut self) -> [u8;20];
 
     /// Rehash the fingerprint
     fn shuffle(&mut self) -> Result<(), PGPError>;

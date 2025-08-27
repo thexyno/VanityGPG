@@ -57,9 +57,9 @@ const PKG_DESCRIPTION: &str = env!("CARGO_PKG_DESCRIPTION");
 const PKG_REPOSITORY: &str = env!("CARGO_PKG_REPOSITORY");
 
 /// Key reshuffle limit
-const KEY_RESHUFFLE_LIMIT: usize = 60 * 60 * 24 * 30; // One month ago at worst
+const KEY_RESHUFFLE_LIMIT: usize = 60 * 60 * 24 * 30; // Two months ago at worst
 /// Counter threshold
-const COUNTER_THRESHOLD: usize = 133331; // Just a random number
+const COUNTER_THRESHOLD: usize = 133337; // Just a random number
 
 /// Possible values for CipherSuite
 #[derive(ValueEnum, Clone, Debug)]
@@ -88,11 +88,11 @@ struct Opts {
     jobs: usize,
     /// Regex pattern for matching fingerprints
     #[clap(
-        short = 'p',
-        long = "pattern",
-        help = "Regex pattern for matching fingerprints"
+        short = 'e',
+        long = "ends",
+        help = "strings of 12 characters with which the key should end, comma seperated"
     )]
-    pattern: String,
+    ends: String,
     /// Cipher suite
     #[clap(
         short = 'c',
@@ -262,9 +262,14 @@ impl<B: Backend> Key<B> {
     }
 
     /// Get fingerprint
-    fn get_fingerprint(&self) -> String {
+    fn get_fingerprint(&mut self) -> String {
         self.backend.fingerprint()
     }
+    /// Get fingerprint
+    fn get_fingerprint_bin(&mut self) -> [u8;20] {
+        self.backend.fingerprint_bin()
+    }
+
 
     /// Rehash the key
     fn shuffle(&mut self) -> Result<(), Error> {
@@ -272,7 +277,7 @@ impl<B: Backend> Key<B> {
     }
 
     /// Save armored keys
-    fn save_key(self, user_id: &UserID, dry_run: bool) -> Result<(), Error> {
+    fn save_key(mut self, user_id: &UserID, dry_run: bool) -> Result<(), Error> {
         if dry_run {
             return Ok(());
         }
@@ -301,11 +306,10 @@ fn main() -> Result<(), Error> {
 
     // Setup logger and show some messages
     let logger_backend = setup_logger(opts.verbose, IndicatifBackend::init())?;
-    warn!("Staring VanityGPG version v{}", PKG_VERSION);
+    warn!("Staring VanityGPG-66642 version v{}", PKG_VERSION);
     warn!("(So fast, such concurrency, wow)");
     warn!(
-        "if you met any issue, please file an issue report to \"{}\"",
-        PKG_REPOSITORY
+        "if you met any issue, please cry quietly"
     );
     let counter = Arc::new(Counter::new());
 
@@ -313,22 +317,39 @@ fn main() -> Result<(), Error> {
         .num_threads(opts.jobs + 1)
         .build()?;
     let user_id = UserID::from(opts.user_id);
+        let possible_ends: Vec<[u8;6]> = opts.ends.split(',').map(|x| {
+            let mut s = [0u8;6];
+            hex::decode_to_slice(x,&mut s).unwrap();
+            s
+        }).collect();
+        warn!("ends: {:x?}", possible_ends);
 
     for thread_id in 0..opts.jobs {
         let user_id_cloned = user_id.clone();
-        let pattern = Regex::new(&opts.pattern)?;
+        let possible_ends = possible_ends.clone();
+
         let dry_run = opts.dry_run;
         let cipher_suite = CipherSuite::from(&opts.cipher_suite);
         let counter_cloned = Arc::clone(&counter);
+        // {
+        // let mut example_key = Key::new(DefaultBackend::new(cipher_suite.clone()).unwrap());
+        // let bin = example_key.get_fingerprint_bin();
+        // warn!("example key (bin): {:x?}", bin);
+        // warn!("example key (hex): {}", example_key.get_fingerprint());
+        // let fp =  vec![[0u8;6], bin[14..].try_into().unwrap()];
+        // warn!("stupid test (bin): {:x?}", fp);
+        // warn!("stupid test: {}", fp.contains(bin[14..].try_into().unwrap()));
+        // }
         info!("({}): Spawning thread", thread_id);
         pool.spawn(move || {
             let mut key = Key::new(DefaultBackend::new(cipher_suite.clone()).unwrap());
             let mut reshuffle_counter: usize = KEY_RESHUFFLE_LIMIT;
             let mut report_counter: usize = 0;
             loop {
-                let fingerprint = key.get_fingerprint();
-                if pattern.is_match(&fingerprint) {
-                    warn!("({}): [{}] matched", thread_id, &fingerprint);
+                let fingerprint = key.get_fingerprint_bin();
+                let fingerprint_end: [u8;6] = fingerprint[14..].try_into().unwrap();
+                if possible_ends.contains(&fingerprint_end) {
+                    warn!("({}): [{}] matched", thread_id, &key.get_fingerprint());
                     counter_cloned.count_success();
                     key.save_key(&user_id_cloned, dry_run).unwrap_or(());
                     key = Key::new(DefaultBackend::new(cipher_suite.clone()).unwrap());
@@ -340,7 +361,7 @@ fn main() -> Result<(), Error> {
                     key = Key::new(DefaultBackend::new(cipher_suite.clone()).unwrap());
                     reshuffle_counter = KEY_RESHUFFLE_LIMIT;
                 } else {
-                    info!("({}): [{}] is not a match", thread_id, fingerprint);
+                    // info!("({}): [{}] is not a match", thread_id, fingerprint);
                     reshuffle_counter -= 1;
                     key.shuffle().unwrap_or(());
                 }
